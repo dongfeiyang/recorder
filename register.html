@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>我的记账本</title>
+		<style type="text/css">
+			.top-div{
+				text-align:center;
+				border-bottom:1px solid black;
+			}
+			.pannel{
+				margin:0 31%;
+				width:500px;
+				height:320px;
+				border-left:1px solid black;
+				border-right:1px solid black;
+				border-bottom:1px solid black;
+			}
+			.table-style-fix{
+				position:absolute;
+				width:385px;
+				height:200px;
+				margin-left:75px;
+				margin-top:20px;
+			}
+			.checkcodestyle{
+				font-size:17px;
+				font-weight:bold;
+				display:inline-block;
+				cursor:pointer;
+			}
+			.hint{
+				color:red;
+			}
+			button{
+				cursor:pointer;
+			}
+			.hover-style{ //遮罩样式
+				z-index:999;
+				float:left;
+				position:fixed;
+				top:0;
+				bottom:0;
+				left:0;
+				right:0;
+		
+				display:none;	
+				background-color:black;
+				filter:alpha(Opacity=80);
+				-moz-opacity:0.8;
+				opacity:0.8;
+			}
+			.dialog-style{
+				position:fixed;
+				z-index:1000;
+				top:15%;
+				left:35%;
+				width:350px;
+				height:150px;
+				border:3px solid black;
+				background-color:white;
+				display:none;
+			}
+			.dialog-button-fix{
+				float:right;
+				font-size:17px;
+				margin-top:17px;
+				margin-right:5px;
+			}
+			.comment{
+				text-align:center;
+				color:blue;
+				font-size:14px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="top-div">
+			<h3>注册新用户</h3>
+		</div>
+		<div class="pannel">
+			<table class="table-style-fix">
+				<tr>
+					<td><label for="userId">用户名：</label></td><td><input id="userId" type="text"/></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId1" class="hint"></span></td>
+				<tr>
+					<td><label for="passwordId">密&nbsp;&nbsp;&nbsp;码：</label></td><td><input id="passwordId" type="password"/></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId2" class="hint"></span></td>
+				</tr>
+				<tr>
+					<td><label for="confirmId">确认密码：</label></td><td><input id="confirmId" type="password"/></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId3" class="hint"></span></td>
+				</tr>
+				<tr>
+					<td><label for="emailId">QQ邮箱：</label></td><td><input id="emailId" type="text"/></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId4" class="hint"></span></td>
+				</tr>
+				<tr>
+					<td><label for="checkcodeId">验证码：</label></td><td><input id="checkcodeId" type="text"/>&nbsp;<span id="codeId" onclick="Reduce()" class="checkcodestyle"></span></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId5" class="hint"></span></td>
+				</tr>
+				<tr>
+					<td></td><td><button onclick="EventBeforeSubmit()">提交</button><button style="margin-left:45px" onclick="window.location.href='./login.html'">返回</button></td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<h3 class="comment">QQ邮箱能够帮助您找回密码。</h3>
+					</td>
+				</tr>
+			</table>
+		</div>
+	
+
+	
+		<!-- 隐藏的对话框 -->
+		<div id="dialogId" class="dialog-style">
+			<p><h2 style="text-align:center">确定要提交信息吗？</h2></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="CloseThisDialog()">取消</button><button class="dialog-button-fix" onclick="SubmitIt()">确定</button></p>		
+		</div>
+		<div id="dialog1Id" class="dialog-style">
+			<p><h3 id="titleId" style="text-align:center"></h2></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="CloseThisDialog1()">好的</button></p>		
+		</div>
+		<div id="hoverId" class="hover-style">
+		</div>
+	</body>
+	<script type="text/javascript" src="./checkcode.js">
+	</script>
+	<script type="text/javascript">
+		window.onload = function(){
+			Reduce();
+		}
+
+		function
+		SubmitIt() //提交注册信息
+		{
+			/* ajax!~~~~ */
+			var xmlHttp;
+			var userName = document.getElementById("userId").value;
+			var password = document.getElementById("passwordId").value;
+			var email = document.getElementById("emailId").value;
+			var checkcode = document.getElementById("checkcodeId");
+
+			if(window.XMLHttpRequest)
+			{
+				xmlHttp = new XMLHttpRequest(); //IE7+, ff, Chrome, Opera, Safari
+			}
+			else
+			{
+				xmlHttp = new ActiveXObject("Microsoft.XMLHTTP"); //IE5,IE6
+			}
+
+			xmlHttp.onreadystatechange = function(){
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					var infoString;
+
+					CloseThisDialog();
+					if(xmlHttp.responseText.match("succeed") != null)
+					{
+						document.getElementById("hintId5").innerHTML = "";
+						Clear(); //清理输入痕迹
+						infoString = xmlHttp.responseText.match("[^a-zA-Z0-9][a-zA-Z0-9]*[^a-zA-Z0-9]")[0];
+						infoString = infoString.match("[^$]*[^$]")[0];
+						document.getElementById("titleId").innerHTML = "注册成功！请记住您的密钥：" + infoString + "，方便找回您的密码。";
+						ShowThisDialog1();
+					}
+					else if(xmlHttp.responseText == "checkcodeError\n")
+					{
+						document.getElementById("hintId5").innerHTML = "验证码错误。";
+					}
+					else if(xmlHttp.responseText == "existed\n")
+					{
+						document.getElementById("hintId1").innerHTML = "用户名已存在。";
+						alert("注册失败～");
+					}
+					else
+					{
+						alert("注册失败～");
+					}
+					Reduce(); //生成验证码
+				}
+			}
+			
+			xmlHttp.open("GET", "../cgi-bin/recorder/registe.cgi?userName=" + userName + "&password=" + password + "&email=" + email + "&answer=" + answer + "&userAnswer=" + checkcode.value, false);
+			xmlHttp.send();
+		}
+
+		function
+		Clear() //清空输入的信息
+		{
+			var inputs = document.getElementsByTagName("input");
+			var i;
+
+			for(i = 0; i < inputs.length; i ++)
+			{
+				inputs [i].value = "";
+			}
+		}
+
+		function
+		EventBeforeSubmit() //提交前的事件
+		{
+			if(CheckInput() == true)
+			{
+				ShowThisDialog(); //显示确认提交的对话框。
+			}
+		}
+
+		function //检查输入的信息是否有效
+		CheckInput()
+		{
+			var account = document.getElementById("userId");
+			var password = document.getElementById("passwordId");
+			var confirmPassword = document.getElementById("confirmId");
+			var email = document.getElementById("emailId");
+			var checkcode = document.getElementById("checkcodeId");
+
+			if(account.value.length == 0)
+			{
+				document.getElementById("hintId1").innerHTML = "用户名不能为空。";
+				return false;
+			}
+			document.getElementById("hintId1").innerHTML = "";
+
+			if(password.value.length == 0)
+			{
+				document.getElementById("hintId2").innerHTML = "密码不能为空。";
+				return false;
+			}
+			document.getElementById("hintId2").innerHTML = "";
+
+			if(confirmPassword.value.length == 0)
+			{
+				document.getElementById("hintId3").innerHTML = "确认密码不能为空。";
+				return false;
+			}
+			document.getElementById("hintId3").innerHTML = "";
+
+			if(confirmPassword.value != password.value)
+			{
+				document.getElementById("hintId3").innerHTML = "两次密码不一致。";
+				return false;
+			}
+			document.getElementById("hintId3").innerHTML = "";
+
+			if(email.value.length == 0)
+			{
+				document.getElementById("hintId4").innerHTML = "QQ邮箱号不能为空。";
+				return false;
+			}
+			document.getElementById("hintId4").innerHTML = "";
+
+			if(CheckQQFormat(email.value) == false)
+			{
+				document.getElementById("hintId4").innerHTML = "QQ邮箱号格式不对。";
+				return false;
+			}
+			document.getElementById("hintId4").innerHTML = "";
+
+			if(checkcode.value.length == 0)
+			{
+				document.getElementById("hintId5").innerHTML = "验证码不能为空。";
+				return false;
+			}
+			document.getElementById("hintId5").innerHTML = "";
+			return true;
+		}
+
+		function
+		CheckQQFormat(qqNumber) //检查QQ邮箱格式
+		{
+			var parts = new Array();
+			var i;
+
+			parts = qqNumber.split("@"); //分成号码和尾缀部分
+			if(isNaN(parts [0])) //检查QQ号部分
+			{
+				return false;
+			}
+			if(parts [1] != "qq.com") //检查尾缀部分
+			{
+				return false;
+			}
+			return true;
+		}
+
+		function
+		Reduce() //生成新的验证码
+		{
+			document.getElementById("codeId").innerHTML = GetCheckcode(); //验证码
+			document.getElementById("codeId").style.backgroundColor = bgcolor; //背景色
+		}
+
+		function
+		CloseThisDialog() //关闭对话框
+		{
+			document.getElementById("dialogId").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+			Reduce(); //重置验证码
+		}
+		function
+		ShowThisDialog() //显示对话框
+		{
+			document.getElementById("dialogId").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+
+		function
+		CloseThisDialog1() //关闭密钥提示对话框
+		{
+			document.getElementById("dialog1Id").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+			window.location.href = "./login.html";
+		}
+		function
+		ShowThisDialog1() //显示密钥对话框
+		{
+			document.getElementById("dialog1Id").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+	</script>
+</html>

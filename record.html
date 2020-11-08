@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>我的记账本</title>
+		<style type="text/css">
+			label,button{
+				cursor:pointer;
+			}
+			textarea{
+				float:left;
+				margin-left:30px;
+				font-size:18px;
+			}
+			.hint{
+				color:blue;
+			}
+			.warnning{
+				color:red;
+			}	
+			.hover-style{ //遮罩样式
+				z-index:999;
+				float:left;
+				position:fixed;
+				top:0;
+				bottom:0;
+				left:0;
+				right:0;
+		
+				display:none;	
+				background-color:black;
+				filter:alpha(Opacity=80);
+				-moz-opacity:0.8;
+				opacity:0.8;
+			}
+			.dialog-style{
+				position:fixed;
+				z-index:1000;
+				top:15%;
+				left:35%;
+				width:350px;
+				height:150px;
+				border:3px solid black;
+				background-color:white;
+				display:none;
+			}
+			.dialog-button-fix{
+				float:right;
+				font-size:17px;
+				margin-top:17px;
+				margin-right:5px;
+			}
+		</style>
+	</head>
+	<body>
+		<p>
+			<label for="itemNameId">消费名称：</label><input id="itemNameId" type="text"/>&nbsp;<span id="hint1Id" class="hint">字数不能超过15个。</span>
+		</p>
+		<p>
+			<label for="payId">花费：</label><input id="payId" type="text" style="margin-left:30px; width:100px"/>元&nbsp;<span id="hint2Id" class="hint">（格式是0.000,最高位是万位。）</span>
+		</p>
+		<p>
+			是否设置时间？<label><input id="denyOptionId" name="time" type="radio" checked="checked" onclick="CloseThisCalendar()"/>否</label>&nbsp;<label><input id="confirmOptionId" name="time" type="radio" onclick="ShowThisCalendar()"/>是</label>&nbsp;&nbsp;<span id="calendarId"><label><img src="./ref/icon.png"/><input id="timeId" type="text" placeholder="点击显示日历"/></label><span id="hint4Id" class="warnning"></span></span>
+		</p>
+		<p>
+			<label for="contentId" style="float:left">备注：</label>
+			<textarea id="contentId" rows="2" cols="30" maxlength="20" placeholder="字数不能超过20个，可以为空。"></textarea>&nbsp;<span id="hint3Id" class="hint">字数不能超过20个，换行算一个字。</span>
+		</p>
+		<p>
+			<br/>
+			<br/>
+			<button style="margin-left:75px" onclick="RecordIt()">记录</button>&nbsp;<button onclick="Clear()">清空</button>
+		</p>
+
+		<!-- 隐藏的对话框 -->
+		<div id="dialogId" class="dialog-style"><!-- 提交信息的提示对话框 -->
+			<p><h2 style="text-align:center">确定要提交信息吗？</h2></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="CloseThisDialog()">取消</button><button class="dialog-button-fix" onclick="SubmitIt()">确认提交</button></p>		
+		</div>
+		<div id="dialog1Id" class="dialog-style"><!-- 记账成功的提示对话框 -->
+			<p><h2 style="text-align:center">记录成功！</h2></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="CloseThisDialog1()">确定</button></p>
+		</div>
+		<div id="hoverId" class="hover-style">
+		</div>
+	</body>
+	<script type="text/javascript" src="./ref/laydate/laydate.js"></script> <!-- 引入日历脚本 -->
+	<script type="text/javascript">
+		window.onload = function(){
+			document.getElementById("denyOptionId").checked = "checked";
+			laydate.render({ //制作日历
+  				elem: '#timeId',
+				theme:'molv',
+				type: 'datetime'
+			});
+			CloseThisCalendar(); //关闭日历输入框
+			Clear(); //清理输入的痕迹
+		}
+
+		function
+		ShowThisCalendar() //显示日历输入框
+		{
+			document.getElementById("timeId").value = "";
+			document.getElementById("calendarId").style.visibility = "visible";
+		}
+		function
+		CloseThisCalendar() //关闭日历输入框
+		{
+			document.getElementById("calendarId").style.visibility = "hidden";
+		}
+
+		function
+		RecordIt() //按钮记录触发的事件
+		{
+			if(CheckInput() == true) //检查输入的是否有效
+			{
+				ShowThisDialog();//弹出对话框
+			}
+		}
+
+		function
+		SubmitIt() //提交输入的记账信息
+		{
+			var userName = unescape(window.location.href.split("?")[1].split("=")[1]);
+			var itemName = document.getElementById("itemNameId").value;
+			var pay = document.getElementById("payId").value;
+			var confirmOption = document.getElementById("confirmOptionId");
+			var time;
+			var comment = document.getElementById("contentId").value;
+			var xmlHttp;
+			
+			if(window.XMLHttpRequest)
+			{
+				xmlHttp = new XMLHttpRequest(); //IE7+,FF, Chrome, Opera, Safari
+			}
+			else
+			{
+				xmlHttp = new ActiveXObject("Microsoft.XMLHTTP"); //IE6,IE5
+			}
+
+			xmlHttp.onreadystatechange = function(){
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					if(xmlHttp.responseText == "succeed\n")
+					{
+						CloseThisDialog(); //关闭弹出的对话框
+						Clear(); //清理输入的痕迹
+						ShowThisDialog1(); //弹出提示对话框
+					}
+					else if(xmlHttp.responseText == "exit\n")
+					{
+						window.location.href = "./logout.html";
+					}
+					else
+					{
+						window.location.href = "./exception.html";	
+					}
+				}
+			}
+
+			if(confirmOption.checked == true)
+			{
+				time = document.getElementById("timeId").value;
+				xmlHttp.open("GET", "../cgi-bin/recorder/record.cgi?userName=" + userName + "&itemName=" + itemName + "&pay=" + pay + "&time=" + time + "&comment=" + comment, false);
+			}
+			else
+			{
+				xmlHttp.open("GET", "../cgi-bin/recorder/record.cgi?userName=" + userName + "&itemName=" + itemName + "&pay=" + pay + "&comment=" + comment, false);
+			}
+			xmlHttp.send();
+		}
+
+		function
+		CheckInput() //检查输入是否有效
+		{
+			var itemName = document.getElementById("itemNameId").value;
+			var pay = document.getElementById("payId").value;
+			var comment = document.getElementById("contentId").value;
+			var confirmOption = document.getElementById("confirmOptionId");
+
+			var hint1 = document.getElementById("hint1Id");
+			var hint2 = document.getElementById("hint2Id");
+			var hint3 = document.getElementById("hint3Id");
+			var hint4 = document.getElementById("hint4Id");
+
+			if(itemName.length == 0) //检查消费对象的输入是否有效
+			{
+				hint1.innerHTML = "消费对象名称不能为空。";
+				hint1.setAttribute("class", "warnning");
+				return false;
+			}
+			hint1.innerHTML = "字数不能超过15个。";
+			hint1.setAttribute("class", "hint");
+
+			if(itemName.length > 15)
+			{
+				hint1.innerHTML = "字数超限。";
+				hint1.setAttribute("class", "warnning");
+				return false;
+			}
+			hint1.innerHTML = "字数不能超过15个。";
+			hint1.setAttribute("class", "hint");
+
+			
+			if(pay.length == 0) //检查花费的输入是否有效
+			{
+				hint2.innerHTML = "花费不能为空";
+				hint2.setAttribute("class", "warnning");
+				return false;
+			}
+			hint2.innerHTML = "（格式是0.000,最高位是万位。）";
+			hint2.setAttribute("class", "hint");
+
+			if(isNaN(pay) == true || CheckIt(pay) == false)
+			{
+				hint2.innerHTML = "格式不对";
+				hint2.setAttribute("class", "warnning");
+				return false;
+			}
+			hint2.innerHTML = "（格式是0.000,最高位是万位。）";
+			hint2.setAttribute("class", "hint");
+			
+			if(confirmOption.checked == true) //如果用户开启了日期设置
+			{
+				if(document.getElementById("timeId").value.length == 0) //检查用户是否选择了日期
+				{
+					hint4.innerHTML = "请选择日期。";
+					return false;
+				}hint4.innerHTML = "";
+			}
+
+			if(comment.length > 20) //检查备注的输入是否有效
+			{
+				hint3.innerHTML = "字数超限。";
+				hint3.setAttribute("class", "warnning");
+				return false;
+			}
+			hint3.innerHTML = "字数不能超过20个，换行算一个字。";
+			hint3.setAttribute("class", "hint");
+			return true;
+		}
+
+		function
+		CheckIt(payment) //检查花费的数字格式是否有效
+		{
+			var str = payment.toString();
+			var dotPos = str.indexOf(".");
+
+			if(dotPos == -1)
+			{
+				if(str.length > 5) //如果是整数，判断是否最高位为万位
+				{
+					return false;
+				}
+				else
+				{
+					return true;	
+				}
+			}
+			else
+			{
+				var part1 = str.split(".")[0]; //整数部分
+				var part2 = str.split(".")[1]; //小数部分
+
+				if(part1.length <= 0 || part1.length > 5) //如果是小数，判断整数部分和小数部分位数是否达标
+				{
+					return false;
+				}
+				if(part2.length <= 0 || part2.length > 3)
+				{
+					return false;
+				}
+				return true;
+			}
+		}
+
+		function
+		Clear() //清理用户输入的痕迹
+		{	
+			var confirmOption = document.getElementById("confirmOptionId");
+
+			document.getElementById("itemNameId").value = "";
+			document.getElementById("payId").value = "0.0";
+			document.getElementById("contentId").value = "";
+	
+			if(confirmOption.checked == true) //如果用户开启了日期设置
+			{
+				document.getElementById("timeId").value = "";
+			}
+		}
+
+		function
+		CloseThisDialog() //关闭对话框
+		{
+			document.getElementById("dialogId").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+		}
+		function
+		ShowThisDialog() //显示对话框
+		{
+			document.getElementById("dialogId").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+
+		function
+		CloseThisDialog1() //关闭对话框1
+		{
+			document.getElementById("dialog1Id").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+		}
+		function
+		ShowThisDialog1() //显示对话框1
+		{
+			document.getElementById("dialog1Id").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+	</script>
+</html>

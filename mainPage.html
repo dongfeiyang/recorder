@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width,initial-scale=0.53"/>
+		<title>我的记账本</title>
+		<style type="text/css">
+			a{
+				display:block;
+				border:1px solid black;
+			}
+			a:link,a:visited,a:hover,a:active{
+				color:black;
+				text-decoration:none;
+			}
+			li{
+				list-style-type:none;
+				width:150px;
+			}
+			li a{
+				text-align:center;
+				font-size:25px;
+			}
+			li li a{
+				padding-left:40px;
+				font-size:20px;
+			}
+			ul ul{
+				position:relative;
+				margin-left:-40px;
+			}
+			button{
+				cursor:pointer;
+			}
+			.leftMenu{
+				position:fixed;
+				top:10px;
+				bottom:10px;
+				left:0px;
+				width:200px;
+				border-right:1px solid black;
+				border-top:1px solid black;
+				border-bottom:1px solid black;
+			}
+			.rightContent{
+				position:fixed;
+				left:201px;
+				right:0px;
+				top:10px;
+				bottom:10px;
+			}
+			.frameFix{
+				width:100%;
+				height:100%;
+			}
+			.hover-style{ //遮罩样式
+				z-index:999;
+				float:left;
+				position:fixed;
+				top:0;
+				bottom:0;
+				left:0;
+				right:0;
+		
+				display:none;	
+				background-color:black;
+				filter:alpha(Opacity=80);
+				-moz-opacity:0.8;
+				opacity:0.8;
+			}
+			.dialog-style{
+				position:fixed;
+				z-index:1000;
+				top:15%;
+				left:35%;
+				width:350px;
+				height:150px;
+				border:3px solid black;
+				background-color:white;
+				display:none;
+			}
+			.dialog-button-fix{
+				float:right;
+				font-size:17px;
+				margin-top:17px;
+				margin-right:5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="leftMenuId" class="leftMenu"><!-- 左侧菜单 -->
+			<ul>
+				<li><a href="#" onclick="ToggleMenu()">查询</a>
+					<ul id="searchMenuId" style="display:none">
+						<li><a href="#" target="content" style="padding-right:40px">按年</a></li>
+						<li><a href="#" target="content" style="padding-right:20px">按年月</a></li>
+						<li><a href="#" target="content">按年月日</a></li>
+					</ul>
+				</li>
+				<li><a href="#" target="content">记账</a></li>
+				<li><a href="#" target="content">个人信息</a></li>
+				<li><a href="#" target="content">修改密码</a></li>
+				<li><a href="#" onclick="LogOutEvent()">退出登陆</a></li>
+			</ul>
+		</div>
+
+		<div class="rightContent"><!-- 右侧内容 -->
+			<iframe id="contentId" name="content" frameborder="0" class="frameFix"></iframe>
+		</div>
+
+		<!-- 隐藏的对话框 -->
+		<div id="dialogId" class="dialog-style">
+			<p><h3 style="text-align:center">请重新登陆。</h3></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="ConfirmEvent()">确定</button></p>		
+		</div>
+		<div id="hoverId" class="hover-style">
+		</div>
+	</body>
+	<script type="text/javascript">
+		var userName; //存放本次访问的用户名
+
+		window.onbeforeunload = function(){  //如果关闭了窗口
+			LogOutEvent() //退出登陆事件
+    		} 
+
+		window.onload = function(){
+			if(IsAvailable() == false)
+			{
+				window.location.href = "./login.html";
+			}
+			else
+			{
+				userName = unescape(window.location.href.split("?")[1].split("=")[1]);
+				if(userName.indexOf("#") != -1)//避免#干扰userName正确姿态
+				{
+					userName = userName.split("#")[0]; 
+				}
+
+				SetA(); //给每个锚标签设置链接
+				ShowDefaultMenu(); //显示默认的菜单样子
+				document.getElementById("contentId").src = "./searchItByYear.html?userName=" + escape(userName); //设置右侧内容默认显示的网页
+				self.setInterval("Listen()", 50); //监听键值对userName="*&*(*"
+			}
+		}
+		
+		function
+		IsAvailable() //此次访问是否可靠
+		{
+			var userName;
+			var cookies;
+			var cookie;
+
+			if(window.location.href.match("userName=") == null) //判断URL是否有"userName="键名
+			{
+				return false;
+			}
+
+			userName = window.location.href.split("?")[1].split("=")[1]; //判断是否有相应的键值
+			if(userName.length == 0)
+			{
+				return false;
+			}
+
+			/* 判断该用户名是注册相应的cookie,即是否登陆了网站 */
+			if(document.cookie.indexOf(";") == -1) //如果只有一个键值对
+			{
+				cookie = document.cookie;
+				if(cookie.split("=")[1] == userName)
+				{
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			else
+			{
+				var i;
+
+				cookies = document.cookie.split(";");
+				for(i = 0; i < cookies.length; i ++)
+				{
+					if(cookies [i].split("=")[1] == userName)
+					{
+						break;
+					}	
+				}
+				if(i == cookies.length)
+				{
+					return false;
+				}
+				else
+				{
+					return true;
+				}
+			}
+		}
+
+		function
+		SetA() //给每个锚标签设置链接
+		{
+			var links = document.getElementById("leftMenuId").getElementsByTagName("a");
+			var linkHrefs = new Array(
+				'#',
+				'./searchItByYear.html?userName=' + escape(userName),
+				'./searchItByDate.html?userName=' + escape(userName),
+				'./searchItByDatetime.html?userName=' + escape(userName),
+				'./record.html?userName=' + escape(userName),
+				'./perInfo.html?userName=' + escape(userName),
+				'./updatePasswd.html?userName=' + escape(userName),
+				'#'
+			);
+			var i;
+
+			for(i = 1; i < links.length; i ++)
+			{
+				links [i].href = linkHrefs [i];
+			}
+
+			for(i = 0; i < links.length - 1; i ++)
+			{
+				links [i].style.backgroundColor = "white";
+				links [i].setAttribute("onclick", "TriggerIt('" + i + "')");
+			}
+		}
+
+		function
+		TriggerIt(indexStr)
+		{
+			var links = document.getElementById("leftMenuId").getElementsByTagName("a");
+			var subMenu = document.getElementById("searchMenuId");
+			var index = parseInt(indexStr);
+			var i;
+
+			if(index == 0) //如果是带有子菜单的一级选项
+			{
+				ClearButtonsColor(0, 3); //清理一些选项的颜色
+				if(subMenu.style.display == "none")
+				{
+					subMenu.style.display = "block";
+					links [index].style.backgroundColor = "yellow";
+				}
+				else
+				{
+					subMenu.style.display = "none";
+					for(i = 1; i <= 3; i ++)
+					{
+						if(links [index].style.backgroundColor == "yellow")
+						{
+							break;
+						}
+					}
+					if(i == 4) //如果子菜单选项都没有点击，则父菜单选项变为白色
+					{
+						links [index].style.backgroundColor = "white";
+					}
+					else//否则，父菜单选项还是黄色
+					{
+						links [index].style.backgroundColor = "yellow";
+					}
+				}	
+			}
+			else if(index > 0 && index < 4) //如果是子菜单选项
+			{
+				ClearButtonsColor(0, 3); //清理一些选项的颜色
+				for(i = 1; i <= 3; i ++)
+				{
+					if(i != index)
+					{
+						links [i].style.backgroundColor = "white";
+					}
+				}
+				links [index].style.backgroundColor = "yellow";
+			}
+			else //如果其它一级选项
+			{
+				subMenu.style.display ="none";
+				ClearButtonsColor(index, index);
+				links [index].style.backgroundColor = "yellow";
+			}
+		}
+
+		function
+    		ShowDefaultMenu() //显示默认的菜单样子
+		{
+			var subMenu = document.getElementById("searchMenuId");
+			var links = document.getElementById("leftMenuId").getElementsByTagName("a");
+			
+			ClearButtonsColor(-1, -1); //清理全部点击痕迹
+			subMenu.style.display = "block";
+			links [0].style.backgroundColor = "yellow";
+			links [1].style.backgroundColor = "yellow";
+		}
+
+		function
+		ClearButtonsColor(startIndexStr, endIndexStr) //置空startIndex到endIndex范围之外的颜色
+		{
+			var links = document.getElementById("leftMenuId").getElementsByTagName("a");
+			var startIndex = parseInt(startIndexStr);
+			var endIndex = parseInt(endIndexStr);
+			var i;
+			
+			for(i = 0; i < links.length; i ++)
+			{
+				if(i >= startIndex && i <= endIndex)
+				{
+					continue;
+				}
+				links [i].style.backgroundColor = "white";
+			}
+		}
+
+		function
+		Listen() //监听键值对
+		{
+			if(document.cookie.match(escape(userName)) == null)
+			{
+				ShowThisDialog();//弹出退出对话框
+			}
+		}
+
+		function
+		ConfirmEvent() //确认事件
+		{
+			LogOut(); //在服务器注册登出状态
+			CloseThisDialog(); //关闭隐藏对话框
+			window.location.href = "./login.html"; //转移到登陆界面
+		}
+
+		function
+		LogOutEvent() //退出登陆事件
+		{
+			RemoveItsCookie(); //销毁对应的cookie
+			LogOut(); //退出登陆
+		}
+
+		function
+		LogOut() //退出登陆
+		{
+			var xmlHttp;
+
+			if(window.XMLHttpRequest)
+			{
+				xmlHttp = new XMLHttpRequest(); //IE7+，FF, Chrome, Opera, Safari
+			}
+			else
+			{
+				xmlHttp = new ActiveXObject("Microsoft.XMLHTTP"); //IE6,IE5
+			}
+
+			xmlHttp.onreadystatechange = function(){
+				if(xmlHttp.readyState == 4  &&  xmlHttp.status == 200)
+				{
+					if(xmlHttp.responseText == "succeed\n")
+					{
+						window.location.href = "./login.html";
+					}
+					else
+					{
+						window.location.href = "./exception.html";
+					}
+				}
+			}	
+
+			xmlHttp.open("GET", "../cgi-bin/recorder/logout.cgi?userName=" + userName, false);
+			xmlHttp.send();
+		}
+
+		function
+		RemoveItsCookie() //销毁对应的cookie
+		{
+			var cookies;
+			var cookie;
+			var exp = new Date();
+
+			exp.setTime(exp.getTime() - 60 * 1000); //设置时间是一分钟以前
+
+			if(document.cookie.indexOf(";") == -1) //如果只有一个键值对
+			{
+				cookie = document.cookie;
+				document.cookie = cookie + ";expires=" + exp.toUTCString();
+			}
+			else //否则
+			{
+				cookies = document.cookie.split(";");
+				for(i = 0; i < cookies.length; i ++)
+				{
+					if(cookies [i].split("=")[1] == escape(userName))
+					{
+						cookie = cookies [i];
+						document.cookie = cookie + ";expires=" + exp.toUTCString();
+						break;
+					}	
+				}
+			}
+		}
+
+		function
+		CloseThisDialog() //关闭对话框
+		{
+			document.getElementById("dialogId").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+		}
+		function
+		ShowThisDialog() //显示对话框
+		{
+			document.getElementById("dialogId").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+	</script>
+</html>

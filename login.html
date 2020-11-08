@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width,initial-scale=1"/>
+		<title>我的记账本</title>
+		<style type="text/css">
+			.pannel{
+				margin:5% auto;
+				padding:10px 5px;
+				padding-bottom:30px;
+				width:530px;
+				height:auto;
+				border:1px solid black;
+			}
+			.input-fix{
+				width:200px
+			}
+			label{
+				margin-left:89px;
+			}
+			.panel p{
+				margin:5px auto;
+				margin-left:0;
+				margin-right:0;
+			}
+			.hint{
+				color:red;
+			}
+			.checkcodestyle{
+				font-size:17px;
+				font-weight:bold;
+				display:inline-block;
+				cursor:pointer;
+			}
+			.hint3-style{
+				margin-left:160px;
+			}
+			button{
+				cursor:pointer;
+			}
+			a{
+				font-size:14px;
+				margin-left:280px;
+			}
+			a:link,a:visited,a:hover,a:active{
+				color:blue;
+				text-decoration:none;
+			}
+			.hover-style{ //遮罩样式
+				z-index:999;
+				float:left;
+				position:fixed;
+				top:0;
+				bottom:0;
+				left:0;
+				right:0;
+		
+				display:none;	
+				background-color:black;
+				filter:alpha(Opacity=80);
+				-moz-opacity:0.8;
+				opacity:0.8;
+			}
+			.dialog-style{
+				position:fixed;
+				z-index:1000;
+				top:15%;
+				left:35%;
+				width:350px;
+				height:auto;
+				border:3px solid black;
+				background-color:white;
+				display:none;
+			}
+			.dialog-button-fix{
+				float:right;
+				font-size:17px;
+				margin:5px 2px;
+				margin-right:5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="pannel">
+			<h2 style="text-align:center; margin-top:45px">登&nbsp;陆</h2>
+			<p><label for="accountId">用户名：</label><input id="accountId" type="text" class="input-fix"/><span id="hintId1" class="hint"></span></p>
+			<p><label for="passwordId">密&nbsp;&nbsp;&nbsp;码：</label><input id="passwordId" type="password" class="input-fix"/><span id="hintId2" class="hint"></span></p>
+			<p><a href="./forget.html">忘记密码？</a></p>
+			<p id="checkcodeId" style="display:none"><label>验证码：</label><input type="text" id="codeValueId" value=""/>&nbsp;<span id="codeId" class="checkcodestyle" onclick="Reduce()"></span></p>
+			<p id="checkCodeHintId" style="display:none"><span id="hint3Id" class="hint hint3-style"></span><br/></p>
+			<p><button style="margin-left:152px" onclick="LogIn()">登陆</button><button style="margin-left:45px" onclick="RegisteIt()">注册</button></p>
+		</div>
+
+		<!-- 隐藏的对话框 -->
+		<div id="dialogId" class="dialog-style">
+			<p><h2 id="titleId" style="text-align:center; padding:5px 10px"></h2></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="CloseThisDialog()">确定</button></p>		
+		</div>
+		<div id="hoverId" class="hover-style">
+		</div>
+	</body>
+	<script type="text/javascript" src="./checkcode.js">
+	</script>
+	<script type="text/javascript">
+		window.onload = function(){
+			Reduce();	
+		}
+
+		function
+		LogIn() //登陆
+		{
+			var userName;
+			var password;
+			var xmlhttp;
+
+			if(CheckInput() == true) //检查输入是否有效
+			{
+				userName = document.getElementById("accountId").value;
+				password = document.getElementById("passwordId").value;
+
+				if(window.XMLHttpRequest)
+				{
+					xmlhttp = new XMLHttpRequest(); //IE7+, ff, Chrome, Opera, Safari
+				}
+				else
+				{
+					xmlhttp = new ActiveXObject("Microsoft.XMLHTTP"); //IE5,IE6
+				}
+
+				xmlhttp.onreadystatechange = function(){
+					if(xmlhttp.readyState == 4 && xmlhttp.status == 200)
+					{
+						if(xmlhttp.responseText == "succeed\n")
+						{
+							document.getElementById("checkCodeHintId").style.display = "none";
+							document.getElementById("hint3Id").innerHTML = "";
+							if(SetCookie() == true)
+							{
+								window.location.href = "./mainPage.html?userName=" + escape(userName);
+							}
+							else
+							{
+								LogOut(); //如果键值对已经达到上限10个。
+							}
+						}
+						else if(xmlhttp.responseText == "checkCodeError\n")
+						{
+							document.getElementById("checkCodeHintId").style.display = "block";
+							document.getElementById("hint3Id").innerHTML = "验证码错误！";
+						}
+						else if(xmlhttp.responseText == "login\n")
+						{
+							document.getElementById("titleId").innerHTML = "您的用户已经登陆，请退出后再访问。";
+							ShowThisDialog(); //弹出提示对话框
+						}
+						else
+						{
+							document.getElementById("hintId1").innerHTML = "用户名或密码错误。";
+							document.getElementById("checkcodeId").style.display = "block";
+							document.getElementById("titleId").innerHTML = "登陆失败～";
+							ShowThisDialog(); //弹出提示对话框
+						}
+						Reduce(); //生成验证码
+					}
+				}
+
+				if(document.getElementById("checkcodeId").style.display == "block") //如果用户需要填写验证码
+				{
+					xmlhttp.open("GET", "../cgi-bin/recorder/login.cgi?userName=" + userName + "&password=" + password + "&answer=" + answer + "&userAnswer=" + document.getElementById("codeValueId").value.trim(), false);
+				}
+				else //如果不需要
+				{
+					xmlhttp.open("GET", "../cgi-bin/recorder/login.cgi?userName=" + userName + "&password=" + password + "&answer=0&userAnswer=0", false);
+				}
+				xmlhttp.send();
+			}
+		}
+
+		function
+		LogOut() //退出登陆
+		{
+			var userName;
+			var xmlHttp;
+
+			userName = document.getElementById("accountId").value;
+			if(window.XMLHttpRequest)
+			{
+				xmlHttp = new XMLHttpRequest(); //IE7+，FF, Chrome, Opera, Safari
+			}
+			else
+			{
+				xmlHttp = new ActiveXObject("Microsoft.XMLHTTP"); //IE6,IE5
+			}
+
+			xmlHttp.onreadystatechange = function(){
+				if(xmlHttp.readyState == 4  &&  xmlHttp.status == 200)
+				{
+					if(xmlHttp.responseText == "succeed\n")
+					{
+						document.getElementById("titleId").innerHTML = "访问量已达上限";
+						ShowThisDialog(); //弹出提示对话框
+					}
+					else
+					{
+						window.location.href = "./exception.html";
+					}
+				}
+			}	
+
+			xmlHttp.open("GET", "../cgi-bin/recorder/logout.cgi?userName=" + userName, false);
+			xmlHttp.send();
+		}
+
+
+		function
+		RegisteIt() //注册新用户
+		{
+			window.location.href = "./register.html";
+		}
+
+		function //检查输入的信息是否有效
+		CheckInput()
+		{
+			var account = document.getElementById("accountId");
+			var password = document.getElementById("passwordId");
+
+			if(account.value.length == 0)
+			{
+				document.getElementById("hintId1").innerHTML = "用户名不能为空。";
+				return false;
+			}
+			document.getElementById("hintId1").innerHTML = "";
+
+			if(password.value.length == 0)
+			{
+				document.getElementById("hintId2").innerHTML = "密码不能为空。";
+				return false;
+			}
+			document.getElementById("hintId2").innerHTML = "";
+
+			return true;
+		}
+
+		function
+		Reduce() //生成新的验证码
+		{
+			document.getElementById("codeId").innerHTML = GetCheckcode(); //验证码
+			document.getElementById("codeId").style.backgroundColor = bgcolor; //背景色
+		}
+	
+		function
+		SetCookie() //为这个设置cookie
+		{
+			var userName = document.getElementById("accountId").value;
+			var dateTime = new Date();
+			var cookieId;
+
+			cookieId = parseInt(ComeOutCookieIndex()); //生成cookie的ID
+			if(cookieId == -1)
+			{
+				return false;
+			}
+			else
+			{
+				dateTime.setTime(dateTime.getTime() + 60*60*1000); //即这个键值对在1个小时后消失
+				document.cookie = "PASSINGID" + cookieId + "=" + escape(userName) + ";expires=" + dateTime.toGMTString(); 
+				return true;
+			}
+		}
+		
+		function
+		ComeOutCookieIndex() //生成cookie的键值名序号
+		{
+			var cookies = document.cookie;
+			var index;
+			var flag = false;
+			var i;
+
+			if(cookies.length == 0) //如果没有一个登陆cookie
+			{
+				index = Math.ceil(Math.random() * 100) % 11;
+				return index;
+			}
+			else if(cookies.split(";").length >= 10) //如果这10个登陆cookie都被占据
+			{
+				return -1;
+			}
+			else
+			{
+				var keyPairs = cookies.split(";");
+				var keyIndex;
+
+				do
+				{
+					index = Math.ceil(Math.random() * 100) % 11;
+					for(i = 0; i < keyPairs.length; i ++) //把新的序号和当前存在的序号比较
+					{
+						keyIndex = keyPairs [i].split("=")[0].split("D")[1];
+						if(index == keyIndex)
+						{
+							break;
+						}
+					}
+					if(i == keyPairs.length) //如果都不相等，则表示获得了新的序号，退出循环
+					{
+						flag = true;
+					}
+				}while
+					(flag != true);
+
+				return index;
+			}
+		}
+
+		function
+		CloseThisDialog() //关闭对话框
+		{
+			document.getElementById("dialogId").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+		}
+		function
+		ShowThisDialog() //显示对话框
+		{
+			document.getElementById("dialogId").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+	</script>
+</html>

@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>我的记账本</title>
+		<style type="text/css">
+			label{
+				cursor:pointer;
+			}
+			button{
+				cursor:pointer;
+			}
+			table{
+				border-collapse:collapse;
+				border:1px solid black;
+
+				margin-left:10px;
+				margin-top:10px;
+			}
+			th,td{
+				border:1px solid black;
+			}
+			td{
+				padding:2px 5px;
+				text-align:center;
+			}
+			textarea{
+				float:left;
+				margin-left:30px;
+				font-size:18px;
+			}
+			#dataTableId{
+				min-width:800px;
+			}
+			.hint{
+				color:blue;
+			}
+			.warnning{
+				color:red;
+			}
+			.ctrlPanel{
+				display:none;
+			}
+			.ctrlPanel a{
+				display:none;
+			}
+
+			.hover-style{ //遮罩样式
+				z-index:999;
+				float:left;
+				position:fixed;
+				top:0;
+				bottom:0;
+				left:0;
+				right:0;
+		
+				display:none;	
+				background-color:black;
+				filter:alpha(Opacity=80);
+				-moz-opacity:0.8;
+				opacity:0.8;
+			}
+			.dialog-style{
+				position:fixed;
+				z-index:1000;
+				top:15%;
+				left:20%;
+				width:auto;
+				height:auto;
+				padding:5px 10px;
+				border:3px solid black;
+				background-color:white;
+				display:none;
+			}
+			.dialog1-style{
+				position:fixed;
+				z-index:1000;
+				top:15%;
+				left:35%;
+				width:350px;
+				height:150px;
+				border:3px solid black;
+				background-color:white;
+				display:none;
+			}
+			.dialog-button-fix{
+				float:right;
+				font-size:17px;
+				margin-top:17px;
+				margin-right:5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div>
+			<label>&nbsp;&nbsp;选择要查询的年月日：&nbsp;<img src="./ref/icon.png"/><input id="timeId" type="text" placeholder="点击显示日历"/></label>&nbsp;<button onclick="SearchButtonEvent()">查询</button><span id="hintId" class="warnning"></span>
+		</div>
+		<div id="contentId"> <!-- 放置表格数据 -->
+		</div>
+		<br/>
+		<div id="ctrlPanelId" class="ctrlPanel"> <!-- 放置分页按钮 -->
+			<span style="float:right">合计:&nbsp;<span id="totalCostId">0</span>元</span><br/><br/>
+			<span  style="float:right"><a id="firstPageId"href="#">首页</a>&nbsp;<a id="lastPageId" href="#">上一页</a><a id="nextPageId" href="#">下一页</a>&nbsp;<a id="tailPageId" href="#">尾页</a>&nbsp;共<span id="pageNumId">0</span>页&nbsp;第<span id="curPageId">1</span>页&nbsp;<span>跳转到</span><input id="pageId" type="text" style="width:50px; text-align:center"/>页&nbsp;<button onclick="JumpTo()">GO</button></span>
+		</div>
+
+		<div id="dialog1Id" class="dialog-style"><!-- 修改记录的对话框 -->
+			<p>
+				<label for="itemNameId">消费名称：</label><input id="itemNameId" type="text"/>&nbsp;<span id="hint1Id" class="hint">字数不能超过15个。</span>
+			</p>
+			<p>
+				<label for="payId">花费：</label><input id="payId" type="text" style="margin-left:30px; width:100px"/>元&nbsp;<span id="hint2Id" class="hint">（格式是0.000,最高位是万位。）</span>
+			</p>
+			<p>
+				日期：&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<label><img src="./ref/icon.png"/><input id="timeDialogId" type="text" placeholder="点击显示日历"/></label><span id="hint4Id" class="warnning"></span>
+			</p>
+			<p>
+				<label for="noteId" style="float:left">备注：</label>
+				<textarea id="noteId" rows="2" cols="30" maxlength="20" placeholder="字数不能超过20个，可以为空。"></textarea>&nbsp;<span id="hint3Id" class="hint">字数不能超过20个，换行算一个字。</span>
+			</p>
+			<p>
+				<br/>
+				<br/>
+				<button id="updateBtnId" style="margin-left:75px">确认修改</button>&nbsp;<button onclick="CloseThisUpdateDialog()">返回</button>
+			</p>
+		</div>
+		<div id="dialog2Id" class="dialog1-style"><!-- 修改成功的提示对话框 -->
+			<p><h2 style="text-align:center">修改成功！</h2></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="CloseThisDialog1()">确定</button></p>
+		</div>
+		<div id="dialog3Id" class="dialog1-style"><!-- 删除成功的提示对话框 -->
+			<p><h2 style="text-align:center">删除成功！</h2></p>
+			<p style="border-top:2px solid black;"><button class="dialog-button-fix" onclick="CloseThisDialog2()">确定</button></p>
+		</div>
+		<div id="hoverId" class="hover-style">
+		</div>
+	</body>
+	<script type="text/javascript" src="./ref/laydate/laydate.js"></script> <!-- 引入日历脚本 -->
+	<script type="text/javascript">
+		var xmlHttp;
+		var userName;
+		var JSONData; //获取JSON数据
+		var tableContent; //获取表格形式的数据
+
+		window.onload = function(){
+			laydate.render({ //制作日历
+  				elem: '#timeId',
+				theme:'molv',
+				type: 'date'
+			});
+
+			userName = unescape(window.location.href.split("?")[1].split("=")[1]); //获取用户名
+			if(userName.indexOf("#") != -1)//避免#干扰userName正确姿态
+			{
+				userName = userName.split("#")[0]; 
+			}
+		}
+
+		window.onresize = function(){ //窗口变大变小要做的事情
+			var contentContainer = document.getElementById("contentId"); //内容容器
+			var contentPanel = document.getElementById("dataTableId"); //内容面板
+			var ctrlPanel = document.getElementById("ctrlPanelId"); //分页按钮面板
+
+			if(contentContainer.innerHTML != "") //如果有表格显示
+			{
+				ctrlPanel.style.width = contentPanel.offsetWidth + "px"; //调整分页面板宽度和表格一致
+			}
+		}
+
+		function
+		SearchButtonEvent() //按钮查询的事件
+		{
+			if(CheckInput() == true)
+			{
+				ShowData('1');  //显示第一页的数据
+			}
+		}
+
+		function
+		CheckInput() //检查用户的输入是否有效
+		{
+			var time = document.getElementById("timeId").value;
+			var year;
+			var month;
+			var day;
+
+			if(time.length == 0)
+			{
+				document.getElementById("hintId").innerHTML = "请选择要查询的年份。";
+				return false;
+			}
+			document.getElementById("hintId").innerHTML = "";
+
+			if(time.indexOf("-") == -1)
+			{
+				document.getElementById("hintId").innerHTML = "日期格式不对。";
+				return false;
+			}
+			document.getElementById("hintId").innerHTML = "";
+			
+			year = time.split("-")[0];
+			month = time.split("-")[1];
+			day = time.split("-")[2];
+			if(isNaN(year) == true)
+			{
+				document.getElementById("hintId").innerHTML = "日期格式不对。";
+				return false;
+			}
+			document.getElementById("hintId").innerHTML = "";
+			if(isNaN(month) == true)
+			{
+				document.getElementById("hintId").innerHTML = "日期格式不对。";
+				return false;
+			}
+			document.getElementById("hintId").innerHTML = "";
+			if(isNaN(day) == true)
+			{
+				document.getElementById("hintId").innerHTML = "日期格式不对。";
+				return false;
+			}
+			document.getElementById("hintId").innerHTML = "";
+			return true;
+		}
+
+		function
+		JumpTo() //显示指定的第几页
+		{
+			var pageNo = document.getElementById("pageId").value;
+
+			ShowData(pageNo);
+		}
+
+		function
+		ShowData(pageNo) //显示指定页的数据
+		{
+			var recordNum = GetRecordNumber(); //获取数据总数
+			
+			if(recordNum == -2) //如果后台异常，进入异常界面
+			{
+				window.location.href = "./exception.html";
+			}
+			else if(recordNum == -1) //如果后台已经登出，则进入登出提示界面
+			{
+				window.location.href = "./logout.html";
+			}
+			else //否则，继续以下步骤
+			{
+				var pageNum = Math.ceil(recordNum / 7);  //获取数据总页数
+
+				if(parseInt(pageNo) <= pageNum) //判断能否请求这一页的数据
+				{
+					RequestThePageNo(pageNo); //获取指定页的数据
+	
+					if(tableContent == "failure")
+					{
+						window.location.href = "./exception.html";
+					}
+					else
+					{
+						var buttons;
+						var recordId;
+						var i, j;
+
+						document.getElementById("contentId").innerHTML = tableContent;
+						buttons = document.getElementById("contentId").getElementsByTagName("button"); //为表格里的操作列表中的按钮绑定事件
+						if(buttons.length != 0)
+						{
+							for(i = 0, j = 0; i < JSONData.records.length; i ++, j += 2)
+							{
+								recordId = JSONData.records [i].id;
+								buttons [j].setAttribute("onclick", "ShowThisUpdateDialog('" + recordId + "','" + i + "','" + pageNo + "')");
+								buttons [j + 1].setAttribute("onclick", "RemoveIt('" + recordId + "','" + pageNo + "')");
+							}
+						}
+				
+						Counter(); //显示总花费
+						Setting(pageNo); //设置分页按钮
+					}	
+				}
+				else //否则，显示数据空的提示信息
+				{
+					tableContent = "<table id='dataTableId'><thead><th style='width:240px'>消费对象</th><th style='width:100px'>花费（元）</th><th style='width:200px'>记录时间</th><th style='width:340px'>备注</th><th style='width:150px'>操作</th></thead><tbody>";
+					tableContent += "<tr><td colspan='5' align='center'>没有花费</td></tr></tbody>";
+					document.getElementById("contentId").innerHTML = tableContent;
+					document.getElementById("ctrlPanelId").style.display = "none";
+				}
+			}
+		}
+
+
+		function
+		Setting(pageNoStr) //设置分页按钮
+		{
+			var recordNum = GetRecordNumber();  //获取数据总数
+			var pageNum = Math.ceil(recordNum / 7); //获取数据总页数
+			var pageNo = parseInt(pageNoStr); //获取当前页码
+			var ctrlPanel = document.getElementById("ctrlPanelId");
+			var contentPanel = document.getElementById("dataTableId");
+			var firstPageBtn = document.getElementById("firstPageId");
+			var lastPageBtn = document.getElementById("lastPageId");
+			var nextPageBtn = document.getElementById("nextPageId");
+			var tailPageBtn = document.getElementById("tailPageId");
+
+			ctrlPanel.style.display = "block"; //显示分页按钮面板
+			ctrlPanel.style.width = contentPanel.offsetWidth + "px"; //调整分页面板宽度和表格一致
+			document.getElementById("curPageId").innerHTML = pageNoStr; //设置显示第几页的页码
+			document.getElementById("pageId").value = ""; //清空输入页码的输入框
+			document.getElementById("pageNumId").innerHTML = pageNum; //设置显示总共的页数
+
+			if(pageNo >= pageNum) 
+			{
+				if(pageNo == 1) //如果是第一页，也是最后一页
+				{
+					firstPageBtn.style.display = "none";
+					lastPageBtn.style.display = "none";
+					nextPageBtn.style.display = "none";
+					tailPageBtn.style.display = "none";
+				}
+				else //如果不是第一页，则是若干页的最后一页
+				{
+					pageNo = pageNum - 1;
+
+					firstPageBtn.style.display = "inline";
+					lastPageBtn.style.display = "inline";
+					nextPageBtn.style.display = "none";
+					tailPageBtn.style.display = "none";
+
+					firstPageBtn.setAttribute("onclick", "ShowData('1')");
+					lastPageBtn.setAttribute("onclick", "ShowData('" + pageNo + "')");
+				}
+			}
+			else
+			{
+				if(pageNo == 1) //如果若干页前的第一页
+				{
+					firstPageBtn.style.display = "none";
+					lastPageBtn.style.display = "none";
+					nextPageBtn.style.display = "inline";
+					tailPageBtn.style.display = "inline";
+
+					nextPageBtn.setAttribute("onclick", "ShowData('" + (pageNo+1) + "')");
+					tailPageBtn.setAttribute("onclick", "ShowData('" + pageNum + "')");
+				}
+				else //如果不是第一页，也不是最后一页，而是中间的某一页
+				{
+					firstPageBtn.style.display = "inline";
+					lastPageBtn.style.display = "inline";
+					nextPageBtn.style.display = "inline";
+					tailPageBtn.style.display = "inline";
+
+					firstPageBtn.setAttribute("onclick", "ShowData('1')");
+					lastPageBtn.setAttribute("onclick", "ShowData('" + (pageNo-1) + "')");
+					nextPageBtn.setAttribute("onclick", "ShowData('" + (pageNo+1) + "')");
+					tailPageBtn.setAttribute("onclick", "ShowData('" + pageNum + "')");
+				}
+				
+			}
+		}
+
+		function
+		Counter() //统计指定时间内用户的花费，并显示指定区域
+		{
+			var costPanel = document.getElementById("totalCostId");
+			var year = document.getElementById("timeId").value.split("-")[0];
+			var month = document.getElementById("timeId").value.split("-")[1];
+			var day = document.getElementById("timeId").value.split("-")[2];
+			var url;
+			var method;
+
+			url = "../cgi-bin/recorder/counter.cgi?userName=" + userName + "&year=" + year + "&month=" + month + "&day=" + day;
+			method = function(){
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					if(xmlHttp.responseText.match("succeed") != null)
+					{
+						var info = xmlHttp.responseText.split("$")[1];
+
+						costPanel.innerHTML = info;
+					}
+					else if(xmlHttp.responseText == "exit\n")
+					{
+						window.location.href = "./logout.html";
+					}
+					else
+					{
+						window.location.href = "./exception.html";
+					}
+				}
+			};
+			LoadThisMethod(method, url);
+		}
+
+		function
+		GetRecordNumber() //获取查询的记录总数目
+		{
+			var year = document.getElementById("timeId").value.split("-")[0];
+			var month = document.getElementById("timeId").value.split("-")[1];
+			var day = document.getElementById("timeId").value.split("-")[2];
+			var url = "../cgi-bin/recorder/observe.cgi?userName=" + userName + "&year=" + year + "&month=" + month + "&day=" + day;
+			var dataNum;
+			var method = function(){
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					if(xmlHttp.responseText.match("succeed") != null)
+					{
+						var info = xmlHttp.responseText.split("$")[1];
+
+						dataNum = parseInt(info);
+					}
+					else if(xmlHttp.responseText == "exit\n")
+					{
+						dataNum = -1;
+					}
+					else
+					{
+						dataNum = -2;
+					}
+				}
+			};
+			
+			LoadThisMethod(method, url);
+			return dataNum;
+		}
+
+		function
+		RequestThePageNo(pageNo) //请求获得某一页的数据
+		{
+			var year = document.getElementById("timeId").value.split("-")[0];
+			var month = document.getElementById("timeId").value.split("-")[1];
+			var day = document.getElementById("timeId").value.split("-")[2];
+			var url = "../cgi-bin/recorder/search.cgi?userName=" + userName + "&pageNo=" + pageNo + "&year=" + year + "&month=" + month + "&day=" + day;
+			var method = function(){ //定义请求的方法
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					if(xmlHttp.responseText.match("succeed") != null)
+					{
+						var txt = xmlHttp.responseText.split("$")[1]; //从后台获取数据部分
+						var buttons;
+						var recordId;
+						var i;
+
+						JSONData = eval("(" + txt + ")"); //转换成JSON数据
+						tableContent = "<table id='dataTableId'><thead><th style='width:240px'>消费对象</th><th style='width:100px'>花费（元）</th><th style='width:200px'>记录时间</th><th style='width:340px'>备注</th><th style='width:150px'>操作</th></thead><tbody>";
+						for(i = 0; i < JSONData.records.length; i ++)
+						{
+							tableContent += "<tr>";
+							tableContent += ("<td>"+JSONData.records [i].itemName+"</td>"); //物品名
+							tableContent += ("<td>"+JSONData.records [i].pay+"</td>"); //花费
+							tableContent += ("<td>"+JSONData.records [i].time+"</td>"); //记录的时间
+							tableContent += ("<td>"+JSONData.records [i].comment+"</td>");//备注
+							tableContent += ("<td>"+"<button type='button'>修改</button>&nbsp;<button type='button'>删除</button>"+"</td>");
+							tableContent += "</tr>";
+						}
+					}
+					else
+					{
+						tableContent = "failure";
+					}
+				}
+			};
+
+			LoadThisMethod(method, url);
+		}
+
+		function
+		ShowThisUpdateDialog(recordId, recordIndex, pageNoStr) //显示修改对话框
+		{
+			var id = parseInt(recordId);
+			var index = parseInt(recordIndex);
+			var pageNo = parseInt(pageNoStr);
+
+			document.getElementById("dialog1Id").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+			laydate.render({ //制作日历
+  				elem: '#timeDialogId',
+				theme:'molv',
+				type: 'datetime'
+			});
+
+			document.getElementById("itemNameId").value = JSONData.records [recordIndex].itemName;
+			document.getElementById("payId").value = JSONData.records [recordIndex].pay;
+			document.getElementById("timeDialogId").value = JSONData.records [recordIndex].time;
+			document.getElementById("noteId").value = JSONData.records [recordIndex].comment;
+			document.getElementById("updateBtnId").setAttribute("onclick", "UpdateIt('" + recordId + "','" + pageNo + "')");
+		}
+		function
+		CloseThisUpdateDialog() //关闭修改对话框
+		{
+			var hint1 = document.getElementById("hint1Id");
+			var hint2 = document.getElementById("hint2Id");
+			var hint3 = document.getElementById("hint3Id");
+			var hint4 = document.getElementById("hint4Id");
+
+			hint1.innerHTML = "字数不能超过15个。"; //恢复修改对话框的状态
+			hint1.setAttribute("class", "hint");
+			hint2.innerHTML = "（格式是0.000,最高位是万位。）";
+			hint2.setAttribute("class", "hint");
+			hint4.innerHTML = "";
+			hint3.innerHTML = "字数不能超过20个，换行算一个字。";
+			hint3.setAttribute("class", "hint");
+
+			document.getElementById("dialog1Id").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+		}
+
+		function
+		UpdateIt(recordId, pageNoStr) //修改某一条记录
+		{
+			var url;
+			var method;
+
+			if(CheckInputInDialog() == true)
+			{
+				var itemName = document.getElementById("itemNameId").value;
+				var pay = document.getElementById("payId").value;
+				var time = document.getElementById("timeDialogId").value;
+				var comment = document.getElementById("noteId").value;
+				var pageNo = parseInt(pageNoStr);
+
+				
+				if(comment.length == 0) //如果备注什么也没有，则避免其他字符干扰备注的内容
+				{
+					comment = "空";
+				}
+
+				url = "../cgi-bin/recorder/update.cgi?userName=" + userName + "&recordId=" + recordId + "&itemName=" + itemName + "&pay=" + pay + "&time=" + time + "&comment=" + comment;
+				method = function(){
+					if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+					{
+						if(xmlHttp.responseText == "succeed\n")
+						{
+							CloseThisUpdateDialog(); //关闭修改对话框
+							ShowThisDialog1(); //弹出修改成功的提示对话框
+							ShowData(pageNo); //显示当前页的数据
+						}
+						else if(xmlHttp.responseText == "exit\n")
+						{
+							window.location.href = "./logout.html";
+						}
+						else
+						{
+							window.location.href = "./exception.html";
+						}
+					}
+				};
+
+				LoadThisMethod(method, url);
+			}	
+		}
+		function
+		CheckInputInDialog() //检查修改对话框中的输入是否有效
+		{
+			var itemName = document.getElementById("itemNameId").value;
+			var pay = document.getElementById("payId").value;
+			var comment = document.getElementById("noteId").value;
+
+			var hint1 = document.getElementById("hint1Id");
+			var hint2 = document.getElementById("hint2Id");
+			var hint3 = document.getElementById("hint3Id");
+			var hint4 = document.getElementById("hint4Id");
+
+			if(itemName.length == 0) //检查消费对象的输入是否有效
+			{
+				hint1.innerHTML = "消费对象名称不能为空。";
+				hint1.setAttribute("class", "warnning");
+				return false;
+			}
+			hint1.innerHTML = "字数不能超过15个。";
+			hint1.setAttribute("class", "hint");
+
+			if(itemName.length > 15)
+			{
+				hint1.innerHTML = "字数超限。";
+				hint1.setAttribute("class", "warnning");
+				return false;
+			}
+			hint1.innerHTML = "字数不能超过15个。";
+			hint1.setAttribute("class", "hint");
+
+			if(pay.length == 0) //检查花费的输入是否有效
+			{
+				hint2.innerHTML = "花费不能为空";
+				hint2.setAttribute("class", "warnning");
+				return false;
+			}
+			hint2.innerHTML = "（格式是0.000,最高位是万位。）";
+			hint2.setAttribute("class", "hint");
+
+			if(isNaN(pay) == true || CheckIt(pay) == false)
+			{
+				hint2.innerHTML = "格式不对";
+				hint2.setAttribute("class", "warnning");
+				return false;
+			}
+			hint2.innerHTML = "（格式是0.000,最高位是万位。）";
+			hint2.setAttribute("class", "hint");
+			
+			if(document.getElementById("timeDialogId").value.length == 0) //检查用户是否选择了日期
+			{
+				hint4.innerHTML = "请选择日期。";
+				return false;
+			}hint4.innerHTML = "";
+
+			if(comment.length > 20) //检查备注的输入是否有效
+			{
+				hint3.innerHTML = "字数超限。";
+				hint3.setAttribute("class", "warnning");
+				return false;
+			}
+			hint3.innerHTML = "字数不能超过20个，换行算一个字。";
+			hint3.setAttribute("class", "hint");
+			return true;
+		}
+		function
+		CheckIt(payment) //检查花费的数字格式是否有效
+		{
+			var str = payment.toString();
+			var dotPos = str.indexOf(".");
+
+			if(dotPos == -1)
+			{
+				if(str.length > 5) //如果是整数，判断是否最高位为万位
+				{
+					return false;
+				}
+				else
+				{
+					return true;	
+				}
+			}
+			else
+			{
+				var part1 = str.split(".")[0]; //整数部分
+				var part2 = str.split(".")[1]; //小数部分
+
+				if(part1.length <= 0 || part1.length > 5) //如果是小数，判断整数部分和小数部分位数是否达标
+				{
+					return false;
+				}
+				if(part2.length <= 0 || part2.length > 3)
+				{
+					return false;
+				}
+				return true;
+			}
+		}
+			
+		function
+		RemoveIt(recordId, pageNoStr) //删除某一条记录
+		{
+			var pageNo = parseInt(pageNoStr); //获取当前页码
+			var url;
+			var method;
+
+			url = "../cgi-bin/recorder/delete.cgi?userName=" + userName + "&recordId=" + recordId;
+			method = function(){
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					if(xmlHttp.responseText == "succeed\n")
+					{
+						var recordNum = GetRecordNumber();  //获取数据总数
+						var pageNum = Math.ceil(recordNum / 2); //获取数据总页数
+
+						ShowThisDialog2(); //弹出修改成功的提示对话框
+						if(pageNo > pageNum)//如果是最后一页唯一一条记录
+						{
+							if(pageNo == 1)
+							{
+								pageNo ++;
+							}
+							ShowData(pageNo - 1); //显示上一页的数据
+						}
+						else//否则
+						{
+							ShowData(pageNo); //显示当前页的数据
+						}
+					}
+					else if(xmlHttp.responseText == "exit\n")
+					{
+						window.location.href = "./logout.html";
+					}
+					else
+					{
+						window.location.href = "./exception.html";
+					}
+				}
+			}
+
+			LoadThisMethod(method, url);
+		}
+
+		function
+		LoadThisMethod(method,url) //提交数据
+		{
+			if(window.XMLHttpRequest)
+			{
+				xmlHttp = new XMLHttpRequest(); //IE7+,FF, Chrome, Opera, Safari
+			}
+			else
+			{
+				xmlHttp = new ActiveXObject("Microsoft.XMLHTTP"); //IE5，IE6
+			}
+
+			xmlHttp.onreadystatechange = method;
+
+			xmlHttp.open("GET", url, false);
+			xmlHttp.send();
+		}
+
+		function
+		CloseThisDialog1() //关闭修改成功的提示对话框
+		{
+			document.getElementById("dialog2Id").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+		}
+		function
+		ShowThisDialog1() //显示修改成功的提示对话框
+		{
+			document.getElementById("dialog2Id").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+
+		function
+		CloseThisDialog2() //关闭删除成功的提示对话框
+		{
+			document.getElementById("dialog3Id").style.display = "none";
+			document.getElementById("hoverId").style.display = "none";
+		}
+		function
+		ShowThisDialog2() //显示删除成功的提示对话框
+		{
+			document.getElementById("dialog3Id").style.display = "block";
+			document.getElementById("hoverId").style.display = "block";
+		}
+	</script>
+</html>

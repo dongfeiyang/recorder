@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>我的记账本</title>
+		<style type="text/css">
+			.pannel{
+				margin:5% 35%;
+				width:350px;
+				height:200px;
+				font-weight:bold;
+			}
+		</style>
+	</head>
+	<body>
+		<div class = "pannel">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;尊敬的用户，您好！已经把您的登陆密码发送到您的qq邮箱，如果等好久都没有收到，可能被官方视为垃圾邮件，建议您去查看您的垃圾箱。 最后，感谢您的使用。倒记10秒自动进入登陆界面(<span id="hintId">10</span>s)</div>
+	</body>
+	<script type="text/javascript">
+		var seconds = 10;
+		var sign;
+
+		window.onload = function(){
+			sign = self.setInterval("CountDown()", 1000);
+		}
+
+		function
+		CountDown() //倒计时
+		{
+			seconds --;
+			document.getElementById("hintId").innerHTML = seconds.toString();
+			if(seconds == 0)
+			{
+				self.clearInterval(sign);
+				window.location.href = "./login.html";
+			}
+		}
+	</script>
+</html>

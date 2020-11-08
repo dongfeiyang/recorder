@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>我的记账本</title>
+	</head>
+	<body>
+		<table>
+			<tr>
+				<td>用户名：</td><td><input id="userNameId" type="text" readonly="readonly"/></td>
+			</tr>
+			<tr>
+				<td>找回密钥：</td><td><input id="keyId" type="text" readonly="readonly"/></td>
+			</tr>
+			<tr>
+				<td>QQ邮箱：</td><td><input id="qqEmailId" type="text" readonly="readonly"/></td>
+			</tr>
+		</table>
+	</body>
+	<script type="text/javascript">
+		window.onload = function(){
+			GiveThemValues(); //给这些输入框赋值
+		}
+
+		function
+		GiveThemValues() //给这些输入框赋予信息
+		{
+			var userName = unescape(window.location.href.split("?")[1].split("=")[1]);
+			var xmlHttp;
+
+			document.getElementById("userNameId").value = userName;
+
+			if(window.XMLHttpRequest)
+			{
+				xmlHttp = new XMLHttpRequest(); //IE7+, ff, cHrome, Opera, Safari
+			}
+			else
+			{
+				xmlHttp = new ActiveXOBject("Microsoft.XMLHTTP"); //IE6,IE5
+			}
+
+			xmlHttp.onreadystatechange = function(){
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					var report = xmlHttp.responseText;
+					var JSONData;
+
+					if(report == "exit\n")
+					{
+						window.location.href = "./logout.html";
+					}
+					else if(report == "failure\n")
+					{
+						window.location.href = "./exception.html";
+					}
+					else
+					{
+						JSONData = eval("(" + report + ")");
+						document.getElementById("keyId").value = JSONData.personalInfo[0].findingKey;
+						document.getElementById("qqEmailId").value = JSONData.personalInfo[0].qqEmail;
+					}
+				}
+			}
+
+			xmlHttp.open("GET", "../cgi-bin/recorder/perInfo.cgi?userName=" + userName, false);
+			xmlHttp.send();
+		}
+	</script>
+</html>

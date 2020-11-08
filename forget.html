@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>我的记账本</title>
+		<style type="text/css">
+			.top-div{
+				text-align:center;
+				border-bottom:1px solid black;
+			}
+			.pannel{
+				margin:0 31%;
+				width:500px;
+				height:320px;
+				border-left:1px solid black;
+				border-right:1px solid black;
+				border-bottom:1px solid black;
+			}
+			.table-style-fix{
+				position:absolute;
+				width:385px;
+				height:200px;
+				margin-left:75px;
+				margin-top:20px;
+			}
+			.hint{
+				color:red;
+			}
+			button{
+				cursor:pointer;
+			}
+
+			.dialog-fix{ /* 对话框样式 */
+				position:fixed;
+				z-index:1000;
+				top:15%;
+				left:38%;
+				height:35%;
+				width:300px;
+				height:150px;
+				border:1px solid black;
+				background-color:white;
+				display:none;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="top-div">
+			<h3>找回密码</h3>
+		</div>
+		<div class="pannel">
+			<table class="table-style-fix">
+				<tr>
+					<td><label for="userNameId">用户名：</label></td><td><input id="userNameId" type="text"/></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId1" class="hint"></span></td>
+				</tr>
+				<tr>
+					<td><label for="keyId">密钥：</label></td><td><input id="keyId" type="password"/></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId2" class="hint"></span></td>
+				</tr>
+				<tr>
+					<td><label for="emilId">QQ邮箱</label></td><td><input id="emailId" type="text"/></td>
+				</tr>
+				<tr>
+					<td></td><td><span id="hintId3" class="hint"></span></td>
+				</tr>
+				<tr>
+					<td></td><td><button onclick="Submit()">提交</button><button style="margin-left:45px" onclick="window.location.href='./login.html'">返回</button></td><td></td>
+				</tr>
+			</table>
+		</div>
+
+		<div id="dialogId" class="dialog-fix"> <!-- 发送状态提示对话框 -->
+			<br/><br/><h3>&nbsp;&nbsp;正在发送。。。。。（<span id="secondId">0</span>）s</h3>
+		</div>
+	</body>
+	<script type="text/javascript">
+		var timeSign;
+
+		window.onload = function(){
+			document.getElementById("hintId3").innerHTML = "尾缀要小写,如12345@qq.com";
+			document.getElementById("hintId3").style.color = "blue";
+		}
+
+		function
+		Submit() //提交
+		{
+			var xmlHttp;
+			var userName;
+			var key;
+			var email;
+
+			if(CheckInput() == true)
+			{
+				userName = document.getElementById("userNameId").value;
+				key = document.getElementById("keyId").value;
+				email = document.getElementById("emailId").value;
+
+				document.getElementById("dialogId").style.display = "block"; //发送状态提示对话框开始工作
+				timeSign = self.setInterval("Knock()", 1000);
+
+				if(window.XMLHttpRequest)
+				{
+					xmlHttp = new XMLHttpRequest(); //IE7+,FF,Chrome,Opera,Safari
+				}
+				else
+				{
+					xmlHttp = new ActiveXObject("Microsoft.XMLHTTP"); //IE5,IE6
+				}
+
+				xmlHttp.onreadystatechange = function(){
+					if(xmlHttp.readyState == 4  &&  xmlHttp.status == 200)
+					{
+						document.getElementById("dialogId").style.display = "none"; //发送状态提示对话框结束工作
+						window.clearInterval(timeSign);
+						document.getElementById("secondId").innerHTML = "0";
+
+						if(xmlHttp.responseText == "succeed\n")
+						{
+							window.location.href = "./emailOk.html";
+						}
+						else if(xmlHttp.responseText == "none\n")
+						{
+							document.getElementById("hintId1").innerHTML = "该用户不存在。";
+							alert("不能找回密码。");
+						}
+						else if(xmlHttp.responseText == "keyError\n")
+						{
+							document.getElementById("hintId2").innerHTML = "密钥错误。";
+							alert("不能找回密码。");
+						}
+						else if(xmlHttp.responseText == "emailError\n")
+						{
+							document.getElementById("hintId3").style.color = "red";
+							document.getElementById("hintId3").innerHTML = "QQ邮箱错误。";
+							alert("不能找回密码。");
+						}
+						else
+						{
+							window.location.href = "./emailError.html";
+						}
+					}
+				}
+
+				xmlHttp.open("GET", "../cgi-bin/recorder/forget.cgi?userName=" + userName + "&key=" + key + "&email=" + email, true);
+				xmlHttp.send();
+			}
+		}
+
+		function
+		CheckInput() //检查输入是否有效
+		{
+			var userName = document.getElementById("userNameId").value;
+			var key = document.getElementById("keyId").value;
+			var qqEmail = document.getElementById("emailId").value;
+
+			if(userName.length == 0)
+			{
+				document.getElementById("hintId1").innerHTML = "用户名不能为空。";
+				return false;
+			}document.getElementById("hintId1").innerHTML = "";
+
+			if(key.length == 0)
+			{
+				document.getElementById("hintId2").innerHTML = "密钥不能为空。";
+				return false;
+			}document.getElementById("hintId2").innerHTML = "";
+
+			if(qqEmail.length == 0)
+			{
+				document.getElementById("hintId3").style.color = "red";
+				document.getElementById("hintId3").innerHTML = "邮箱不能为空。";
+				return false;
+			}document.getElementById("hintId3").innerHTML = "";
+
+			if(CheckQQFormat(qqEmail) == false)
+			{
+				document.getElementById("hintId3").style.color = "red";
+				document.getElementById("hintId3").innerHTML = "不能识别。";
+				return false;
+			}document.getElementById("hintId3").innerHTML = "";
+
+			return true;
+		}
+		
+		function
+		CheckQQFormat(qqNumber) //检查QQ邮箱格式
+		{
+			var parts = new Array();
+			var i;
+
+			parts = qqNumber.split("@"); //分成号码和尾缀部分
+			if(isNaN(parts [0])) //检查QQ号部分
+			{
+				return false;
+			}
+			if(parts [1] != "qq.com") //检查尾缀部分
+			{
+				return false;
+			}
+			return true;
+		}
+
+		function
+		Knock() //秒计时
+		{
+			var secondElem = document.getElementById("secondId");
+			var seconds = parseInt(secondElem.innerHTML);
+
+			seconds ++;
+			secondElem.innerHTML = seconds.toString();
+			if(seconds >= 30)
+			{
+				document.getElementById("dialogId").style.display = "none"; //发送状态提示对话框结束工作
+				window.clearInterval(timeSign);
+				document.getElementById("secondId").innerHTML = "0";
+			
+				window.location.href = "./emailError.html"; //跳转到发送邮件失败的页面
+			}
+		}
+	</script>
+</html>
