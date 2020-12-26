@@ -3,5 +3,3 @@
 
 # context
 the tools I used include HTML, JS, AJAX, C-CGI + mysql,  and the server called apache, which runned on centos.
-
-# write
