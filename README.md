@@ -3,3 +3,7 @@
 
 # context
 the tools I used include HTML, JS, AJAX, C-CGI + mysql,  and the server called apache, which runned on centos.
+
+# others
+Hello, it was my first line I recorded today.
+fdsfasfasdfafsadfsafsdadssa
